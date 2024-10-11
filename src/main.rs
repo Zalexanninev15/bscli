@@ -23,7 +23,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
         println!(
-            "wlexcli v0.1-dev 1\nDeveloper: Zalexanninev15 <blue.shark@disroot.org>\nLicense: MIT License\nGitHub: https://github.com/Zalexanninev15/wlexcli\nUsage:\n
+            "wlexcli v0.1-dev 1 (fixed)\nDeveloper: Zalexanninev15 <blue.shark@disroot.org>\nLicense: Apache License 2.0\nGitHub: https://github.com/Zalexanninev15/wlexcli\nUsage:\n
             add [id or name] - install plugin(s)"
         );
         println!("       install [software_name] - install the software");
