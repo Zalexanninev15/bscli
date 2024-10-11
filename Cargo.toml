@@ -1,7 +1,12 @@
 [package]
 name = "wlexpcli"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
+authors = ["Zalexanninev15 <blue.shark@disroot.org>"]
+license = "Apache 2.0 License"
+description = "A console utility for configuring Shark Remote"
+repository = "https://github.com/Zalexanninev15/wlexpcli"
+documentation = "https://github.com/Zalexanninev15/wlexpcli"
 
 [dependencies]
 tokio = { version = "1.0", features = ["full"] }
@@ -11,3 +16,4 @@ indicatif = "0.17.8"
 zip = "2.2.0"
 tempfile = "3.2"
 futures-util = "0.3"
+winconsole = "0.11.1"
