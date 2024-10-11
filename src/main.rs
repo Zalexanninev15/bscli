@@ -7,6 +7,7 @@ use serde_json::Value;
 use indicatif::{ ProgressBar, ProgressStyle };
 use zip::ZipArchive;
 use futures_util::StreamExt;
+use std::process::Command;
 
 const REPO_URL: &str =
     "https://raw.githubusercontent.com/Zalexanninev15/Repository/refs/heads/main/repo.json";
@@ -14,16 +15,56 @@ const DOWNLOAD_BASE_URL: &str =
     "https://github.com/Zalexanninev15/Repository/raw/refs/heads/main/SR5";
 const PLUGINS_DIR: &str = "D:\\Plugins";
 const PLUGINS_INST_FILE: &str = "D:\\Plugins\\plugins.inst";
+const SHARK_REMOTE_URL: &str = "https://cloud.disroot.org/s/iCEpHAAJsc2CBNp/download";
+const CONFIG_URL: &str = "https://sharkremote.neocities.org/config";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
-    if args.len() < 3 || args[1] != "install" {
-        println!("Usage: install [id or name]");
+    if args.len() < 2 {
+        println!(
+            "wlexcli v0.1-dev 1\nDeveloper: Zalexanninev15 <blue.shark@disroot.org>\nLicense: MIT License\nGitHub: https://github.com/Zalexanninev15/wlexcli\nUsage:\n
+            add [id or name] - install plugin(s)"
+        );
+        println!("       install [software_name] - install the software");
+        println!("       sr5cfg - open online-configurator for Shark Remote 5");
         return Ok(());
     }
 
-    let id_or_name = &args[2];
+    match args[1].as_str() {
+        "add" => {
+            if args.len() < 3 {
+                println!("Usage: add [id or name] [id or name] ...");
+                return Ok(());
+            }
+            for id_or_name in &args[2..] {
+                if id_or_name.starts_with("wlc://add") {
+                    let id = id_or_name.trim_start_matches("wlc://add");
+                    install_plugin(id).await?;
+                } else {
+                    install_plugin(id_or_name).await?;
+                }
+            }
+        }
+        "install" => {
+            if args.len() < 3 {
+                println!("Usage: install [software_name]");
+                return Ok(());
+            }
+            install_software(&args[2]).await?;
+        }
+        "sr5cfg" => {
+            open_config_page()?;
+        }
+        _ => {
+            println!("Unknown command. Use 'add', 'install', or 'sr5cfg'.");
+        }
+    }
+
+    Ok(())
+}
+
+async fn install_plugin(id_or_name: &str) -> Result<(), Box<dyn std::error::Error>> {
     let repo_data = fetch_repo_data().await?;
     let plugin = find_plugin(&repo_data, id_or_name)?;
 
@@ -52,7 +93,51 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let first_line = read_first_line(&main_file)?;
     append_to_plugins_inst(&first_line)?;
 
-    println!("Plugin installed successfully!");
+    println!("Plugin '{}' installed successfully!", id_or_name);
+    Ok(())
+}
+
+async fn install_software(software_name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    match software_name {
+        "shark-remote" => {
+            println!("Downloading Shark Remote...");
+            let temp_file = download_file(SHARK_REMOTE_URL).await?;
+
+            let program_files = env::var("ProgramFiles")?;
+            let install_dir = Path::new(&program_files).join("Shark Remote");
+            fs::create_dir_all(&install_dir)?;
+
+            println!("Installing Shark Remote...");
+            extract_zip(&temp_file, install_dir.to_str().unwrap())?;
+
+            create_shortcut(&install_dir, "Desktop", "Shark Remote.lnk")?;
+            create_shortcut(&install_dir, "Start Menu\\Programs", "Shark Remote.lnk")?;
+
+            println!("Shark Remote installed successfully!");
+        }
+        _ => {
+            println!("Unknown software: {}. Only 'shark-remote' is supported for now.", software_name);
+        }
+    }
+    Ok(())
+}
+
+fn open_config_page() -> Result<(), Box<dyn std::error::Error>> {
+    println!("Opening configuration page: {}", CONFIG_URL);
+
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("cmd").args(&["/C", "start", CONFIG_URL]).spawn()?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open").arg(CONFIG_URL).spawn()?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        Command::new("xdg-open").arg(CONFIG_URL).spawn()?;
+    }
+
     Ok(())
 }
 
@@ -162,6 +247,25 @@ fn find_main_file(plugin_dir: &str) -> Result<String, Box<dyn std::error::Error>
         }
     }
     Err(format!("Main file not found in directory '{}'", plugin_dir).into())
+}
+
+fn create_shortcut(
+    target_path: &Path,
+    shortcut_folder: &str,
+    shortcut_name: &str
+) -> io::Result<()> {
+    let shortcut_path = if shortcut_folder == "Desktop" {
+        let desktop = env::var("USERPROFILE").unwrap() + "\\Desktop";
+        Path::new(&desktop).join(shortcut_name)
+    } else {
+        let start_menu =
+            env::var("APPDATA").unwrap() + "\\Microsoft\\Windows\\Start Menu\\Programs";
+        Path::new(&start_menu).join(shortcut_name)
+    };
+
+    fs::write(shortcut_path, format!("Target={}", target_path.display()))?;
+
+    Ok(())
 }
 
 fn read_first_line(file_path: &str) -> Result<String, Box<dyn std::error::Error>> {
